@@ -11,15 +11,3 @@ serve:
 	bash util/generate_token.sh
 	bash util/launcher.sh
 	python3 src/receipt_server.py
-
-PHONY: docker-build
-docker-build:
-	docker build -t monolidth/receipt-parser-server .
-
-.PHONY: docker-push
-docker-push:
-	docker push monolidth/receipt-parser-server
-
-.PHONY: docker-run
-docker-run:
-	bash util/launcher.sh
