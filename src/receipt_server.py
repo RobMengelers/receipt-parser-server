@@ -13,7 +13,9 @@ from fastapi.responses import JSONResponse
 from fastapi.security.api_key import APIKeyQuery, APIKeyCookie, APIKeyHeader, APIKey
 from pydantic import BaseModel
 from receipt_parser_core.config import read_config
-from receipt_parser_core.enhancer import process_receipt
+from receipt_parser_core import Receipt
+from pytesseract import pytesseract
+import cv2
 from starlette.responses import RedirectResponse
 from starlette.status import HTTP_403_FORBIDDEN
 from werkzeug.utils import secure_filename
@@ -172,16 +174,16 @@ async def get_open_api_endpoint(
         receipt = process_receipt(config, filename, rotate=rotate_image, grayscale=grayscale_image,
                                   gaussian_blur=gaussian_blur)
 
-        printer.print_receipt(receipt)
+        # printer.print_receipt(receipt)
 
-        receipt_data = {"storeName": receipt.market,
-                        "receiptTotal": receipt.sum,
-                        "receiptDate": json.dumps(receipt.date, default=util.json_serial),
-                        "receiptCategory": "grocery",
-                        "receiptItems": receipt.items}
+        # receipt_data = {"storeName": receipt.market,
+        #                 "receiptTotal": receipt.sum,
+        #                 "receiptDate": json.dumps(receipt.date, default=util.json_serial),
+        #                 "receiptCategory": "grocery",
+        #                 "receiptItems": receipt.items}
 
-        json_compatible_item_data = jsonable_encoder(receipt_data)
-        return JSONResponse(content=json_compatible_item_data)
+        # json_compatible_item_data = jsonable_encoder(receipt_data)
+        # return JSONResponse(content=json_compatible_item_data)
 
     else:
         raise HTTPException(
@@ -207,3 +209,76 @@ if __name__ == "__main__":
                     ssl_certfile=util.get_work_dir() + CERT_LOCATION, ssl_keyfile=util.get_work_dir() + KEY_LOCATION)
     else:
         uvicorn.run("receipt_server:app", host="0.0.0.0", port=ALLOWED_PORT, log_level="info")
+
+BASE_PATH = os.getcwd()
+INPUT_FOLDER = os.path.join(BASE_PATH, "data/img")
+TMP_FOLDER = os.path.join(BASE_PATH, "data/tmp")
+OUTPUT_FOLDER = os.path.join(BASE_PATH, "data/txt")
+
+ORANGE = '\033[33m'
+RESET = '\033[0m'
+
+def prepare_folders():
+    """
+    :return: void
+        Creates necessary folders
+    """
+
+    for folder in [
+        INPUT_FOLDER, TMP_FOLDER, OUTPUT_FOLDER
+    ]:
+        if not os.path.exists(folder):
+            os.makedirs(folder)
+
+def process_receipt(config, filename, rotate=True, grayscale=True, gaussian_blur=True):
+    input_path = INPUT_FOLDER + "/" + filename
+
+    output_path = OUTPUT_FOLDER + "/" + filename.split(".")[0] + ".txt"
+
+    print(ORANGE + '~: ' + RESET + 'Process image (Rob): ' + ORANGE + input_path + RESET)
+    prepare_folders()
+
+    try:
+        img = cv2.imread(input_path)
+    except FileNotFoundError:
+        return Receipt(config=config, raw="")
+
+    tmp_path = os.path.join(
+        TMP_FOLDER, filename
+    )
+    # img = enhance_image(img, tmp_path,grayscale, gaussian_blur)
+
+    print(ORANGE + '~: ' + RESET + 'Temporary store image at  (Rob): ' + ORANGE + tmp_path + RESET)
+
+    cv2.imwrite(tmp_path, img)
+    run_tesseract(tmp_path, output_path)
+
+    print(ORANGE + '~: ' + RESET + 'Store parsed text at  (Rob): ' + ORANGE + output_path + RESET)
+    raw = open(output_path, 'r').readlines()
+
+    # return Receipt(config=config, raw=raw)
+
+def run_tesseract(input_file, output_file):
+    """
+    :param input_file: str
+        Path to image to OCR
+    :param output_file: str
+        Path to output file
+    :return: void
+        Runs tesseract on image and saves result
+    """
+
+    print(ORANGE + '\t~: ' + RESET + 'Parse image using pytesseract' + RESET)
+    print(ORANGE + '\t~: ' + RESET + 'Parse image at: ' + input_file + RESET)
+    print(ORANGE + '\t~: ' + RESET + 'Write result to: ' + output_file + RESET)
+
+    # with io.BytesIO() as transfer:
+    #     with WandImage(filename=input_file) as img:
+    #         img.save(transfer)
+
+        # with Image.open(transfer) as img:
+    image_data = pytesseract.image_to_string(input_file, timeout=60, config="--psm 6")
+
+    out = open(output_file, "w", encoding='utf-8')
+    out.write(image_data)
+    out.close()
