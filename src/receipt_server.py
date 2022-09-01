@@ -25,7 +25,7 @@ import util as util
 from colors import bcolors
 
 COOKIE_DOMAIN = "receipt.parser.de"
-ALLOWED_PORT = 8721
+ALLOWED_PORT = 8080
 ALLOWED_HOST = "0.0.0.0"
 
 UPLOAD_FOLDER = 'data/img'
