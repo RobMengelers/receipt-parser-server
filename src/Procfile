@@ -1,1 +1,2 @@
-web: uvicorn receipt_server:app --host=0.0.0.0 --port=${PORT:-8080}
+release: bash ./util/generate_certificate.sh & bash ./util/generate_token.sh & bash ./util/launcher.sh
+web: python3 receipt_server.py -p $PORT

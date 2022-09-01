@@ -10,4 +10,4 @@ serve:
 	bash util/generate_certificate.sh
 	bash util/generate_token.sh
 	bash util/launcher.sh
-	python3 src/receipt_server.py
+	python3 receipt_server.py
