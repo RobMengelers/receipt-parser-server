@@ -15,7 +15,7 @@ from pydantic import BaseModel
 from receipt_parser_core.config import read_config
 from receipt_parser_core import Receipt
 from pytesseract import pytesseract
-# import cv2
+import cv2
 from starlette.responses import RedirectResponse
 from starlette.status import HTTP_403_FORBIDDEN
 from werkzeug.utils import secure_filename
@@ -25,7 +25,7 @@ import util as util
 from colors import bcolors
 
 COOKIE_DOMAIN = "receipt.parser.de"
-ALLOWED_PORT = 8080
+ALLOWED_PORT = int(os.environ.get('PORT', 8080))
 ALLOWED_HOST = "0.0.0.0"
 
 UPLOAD_FOLDER = 'data/img'
@@ -190,14 +190,11 @@ if __name__ == "__main__":
     print("Current API token: " + bcolors.OKGREEN + API_KEY + bcolors.ENDC)
     print()
 
-    c = subprocess.getoutput('echo ' + API_KEY + '| qrencode -t UTF8')
-    print(c + "\n")
-
     if config.https:
-        uvicorn.run("receipt_server:app", host="0.0.0.0", port=int(os.environ.get('PORT', 8080)), log_level="info",
+        uvicorn.run("receipt_server:app", host="0.0.0.0", port=ALLOWED_PORT, log_level="info",
                     ssl_certfile=util.get_work_dir() + CERT_LOCATION, ssl_keyfile=util.get_work_dir() + KEY_LOCATION)
     else:
-        uvicorn.run("receipt_server:app", host="0.0.0.0", port=int(os.environ.get('PORT', 8080)), log_level="info")
+        uvicorn.run("receipt_server:app", host="0.0.0.0", port=ALLOWED_PORT, log_level="info")
 
 BASE_PATH = os.getcwd()
 INPUT_FOLDER = os.path.join(BASE_PATH, "data/img")
@@ -227,10 +224,10 @@ def process_receipt(config, filename, rotate=True, grayscale=True, gaussian_blur
     print(ORANGE + '~: ' + RESET + 'Process image (Rob): ' + ORANGE + input_path + RESET)
     prepare_folders()
 
-    # try:
-    #     img = cv2.imread(input_path)
-    # except FileNotFoundError:
-    #     return Receipt(config=config, raw="")
+    try:
+        img = cv2.imread(input_path)
+    except FileNotFoundError:
+        return Receipt(config=config, raw="")
 
     tmp_path = os.path.join(
         TMP_FOLDER, filename
@@ -238,11 +235,12 @@ def process_receipt(config, filename, rotate=True, grayscale=True, gaussian_blur
 
     print(ORANGE + '~: ' + RESET + 'Temporary store image at  (Rob): ' + ORANGE + tmp_path + RESET)
 
-    # cv2.imwrite(tmp_path, img)
+    cv2.imwrite(tmp_path, img)
     run_tesseract(tmp_path, output_path)
 
     print(ORANGE + '~: ' + RESET + 'Store parsed text at  (Rob): ' + ORANGE + output_path + RESET)
     raw = open(output_path, 'r').readlines()
+    print(raw)
 
 def run_tesseract(input_file, output_file):
     """
