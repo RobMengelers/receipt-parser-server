@@ -1,13 +1,9 @@
 import json
 import os
 import shutil
-import socket
-import subprocess
-from collections import namedtuple
 
 import uvicorn
 from fastapi import FastAPI, Depends, UploadFile, File, Security, HTTPException
-from fastapi.encoders import jsonable_encoder
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.security.api_key import APIKeyQuery, APIKeyCookie, APIKeyHeader, APIKey
@@ -39,8 +35,6 @@ API_TOKEN_FILE = "data/.api_token"
 # ZERO_CONF
 ZERO_CONF_DESCRIPTION = "Receipt parser server._receipt-service._tcp.local."
 ZERO_CONF_SERVICE = "_receipt-service._tcp.local."
-
-PRINT_DEBUG_OUTPUT = False
 
 API_KEY_NAME = "access_token"
 api_key_query = APIKeyQuery(name=API_KEY_NAME, auto_error=False)
@@ -133,8 +127,7 @@ async def get_open_api_endpoint(receipt: Receipt,
 # Current image api
 @app.post("/api/upload", tags=["api"])
 async def get_open_api_endpoint(
-        legacy_parser: bool = True,
-        grayscale_image: bool = True,
+        grayscale_image: bool = False,
         gaussian_blur: bool = False,
         rotate_image: bool = False,
         file: UploadFile = File(...),
@@ -155,24 +148,8 @@ async def get_open_api_endpoint(
         with open(output, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
 
-        if PRINT_DEBUG_OUTPUT:
-            items = []
-            item = namedtuple("item", ("article", "sum"))
-            items.append(item("Brot", "1.33"))
-            items.append(item("Kaffee", "5.33"))
-
-            receipt_data = {"storeName": "DebugStore",
-                            "receiptTotal": "15.10",
-                            "receiptDate": "09.25.2020",
-                            "receiptCategory": "grocery",
-                            "receiptItems": items}
-
-            json_compatible_item_data = jsonable_encoder(receipt_data)
-            return JSONResponse(content=json_compatible_item_data)
-
         printer.info("Parsing image")
-        receipt = process_receipt(config, filename, rotate=rotate_image, grayscale=grayscale_image,
-                                  gaussian_blur=gaussian_blur)
+        process_receipt(config, filename, rotate=rotate_image, grayscale=grayscale_image, gaussian_blur=gaussian_blur)
 
     else:
         raise HTTPException(
@@ -261,3 +238,4 @@ def run_tesseract(input_file, output_file):
     out = open(output_file, "w", encoding='utf-8')
     out.write(image_data)
     out.close()
+    return image_data
