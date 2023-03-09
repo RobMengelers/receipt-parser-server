@@ -1,2 +1,0 @@
-release: bash ./util/generate_certificate.sh & bash ./util/generate_token.sh & bash ./util/launcher.sh
-web: python3 receipt_server.py -p $PORT
